@@ -1,5 +1,6 @@
 import {
   ChartPieIcon,
+  ClipboardCheckIcon,
   DatabaseIcon,
   FlaskConicalIcon,
   Grid3x3Icon,
@@ -106,6 +107,12 @@ export const NAV = [
     group: 'BRAIN',
     label: 'Competitions',
     icon: TrophyIcon,
+  },
+  {
+    to: '/spc',
+    group: 'BRAIN',
+    label: 'SPC Submission',
+    icon: ClipboardCheckIcon,
   },
   {
     to: '/pyramids',

@@ -40,6 +40,7 @@ from .api import (
     quarter,
     search_lab,
     sims,
+    spc,
     super_lab,
     tasks,
     template_lab,
@@ -69,6 +70,16 @@ Local research studio for the WorldQuant BRAIN platform.
 Runs entirely on your machine. BRAIN credentials are encrypted at rest and never
 reach the browser.
 """
+
+
+#: ``style-src 'unsafe-inline'``: the UI's charts and Tailwind set inline styles. Scripts stay
+#: first-party only; ``connect-src`` allows the page's own origin and its telemetry socket.
+CSP = (
+    "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; "
+    "img-src 'self' data: blob:; font-src 'self' data:; "
+    "connect-src 'self' ws://127.0.0.1:8000 ws://localhost:8000; "
+    "object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'"
+)
 
 
 def configure_logging() -> None:
@@ -163,7 +174,15 @@ def create_app() -> FastAPI:
                 status_code=403,
             )
         page_seen.set()
-        return await call_next(request)
+        response = await call_next(request)
+        # The Sec-Fetch-Site check above stops other sites *calling* the API, not another
+        # site *framing* this UI and tricking a click (submit, sign out). Refuse framing, MIME
+        # sniffing and referrer leakage; the CSP keeps the page to its own origin.
+        response.headers.setdefault("X-Content-Type-Options", "nosniff")
+        response.headers.setdefault("X-Frame-Options", "DENY")
+        response.headers.setdefault("Referrer-Policy", "no-referrer")
+        response.headers.setdefault("Content-Security-Policy", CSP)
+        return response
 
     install_exception_handlers(app)
 
@@ -186,6 +205,7 @@ def create_app() -> FastAPI:
     app.include_router(super_lab.router)
     app.include_router(chat.router)
     app.include_router(competitions.router)
+    app.include_router(spc.router)
     app.include_router(update.router)
     app.include_router(preferences.router)
     app.include_router(ws.router)

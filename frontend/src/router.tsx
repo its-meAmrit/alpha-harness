@@ -191,6 +191,12 @@ const competitionsRoute = createRoute({
   component: lazyRouteComponent(() => import('@/screens/competitions'), 'CompetitionsScreen'),
 })
 
+const spcRoute = createRoute({
+  getParentRoute: () => root,
+  path: '/spc',
+  component: lazyRouteComponent(() => import('@/screens/spc'), 'SpcScreen'),
+})
+
 const sync = createRoute({
   getParentRoute: () => root,
   path: '/sync',
@@ -211,6 +217,7 @@ const routeTree = root.addChildren([
   labs.addChildren([labsIndex, searchLab, templateLab, evolutionLab, powerPoolLab, superAlphaLab]),
   tools.addChildren([toolsIndex, settingsSampler, submissionPlanner, correlationBreaker]),
   competitionsRoute,
+  spcRoute,
   tasks.addChildren([tasksIndex, taskResults]),
   pool.addChildren([poolIndex, poolTab]),
   portfolio,

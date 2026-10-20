@@ -20,10 +20,12 @@ import json
 import os
 import re
 import shutil
+import hashlib
 import subprocess
 import sys
 import threading
 import time
+import urllib.parse
 import urllib.request
 from pathlib import Path
 from typing import Any
@@ -35,7 +37,23 @@ from alpha_harness.window import open_window
 #: Written in by the release workflow; the version a fresh machine installs.
 BUILD_VERSION = "0.0.0"
 REPOSITORY_VARIABLE = "ALPHA_HARNESS_REPOSITORY"
-REPOSITORY = os.environ.get(REPOSITORY_VARIABLE) or "residual-lab/alpha-harness"
+DEFAULT_REPOSITORY = "its-meAmrit/alpha-harness"
+#: ``owner/name`` as GitHub spells them. Anything else in the environment variable is ignored
+#: rather than trusted: the value is spliced into URLs the launcher installs code from.
+_REPOSITORY_SHAPE = re.compile(r"[A-Za-z0-9](?:[A-Za-z0-9._-]{0,98})/[A-Za-z0-9._-]{1,100}")
+#: A release version as the release workflow writes it (PEP 440, canonical): ``2026.10.1``,
+#: ``2026.10.1rc2``. Spliced into a download path, so nothing with a ``/`` or ``..`` passes.
+_VERSION_SHAPE = re.compile(r"\d+(?:\.\d+){0,3}(?:(?:a|b|rc)\d+)?(?:\.post\d+)?")
+
+
+def _repository() -> str:
+    raw = os.environ.get(REPOSITORY_VARIABLE, "").strip()
+    if raw and _REPOSITORY_SHAPE.fullmatch(raw) and ".." not in raw:
+        return raw
+    return DEFAULT_REPOSITORY
+
+
+REPOSITORY = _repository()
 DOWNLOAD = f"https://github.com/{REPOSITORY}/releases/download"
 
 HOME_VARIABLE = "ALPHA_HARNESS_HOME"
@@ -307,7 +325,66 @@ def requested(root: Path) -> str | None:
 def requested_wheel(root: Path) -> str | None:
     """The wheel URL the app read off the release, rather than one built from the version."""
     url = read_json(root / REQUEST_FILE).get("wheelUrl")
-    return url if isinstance(url, str) and url.startswith(DOWNLOAD) else None
+    return url if isinstance(url, str) and trusted_download(url) else None
+
+
+def trusted_download(url: str) -> bool:
+    """Whether ``url`` is a file of this repository's releases, on github.com over https.
+
+    A bare ``startswith`` accepted ``.../releases/download/../../other/repo/...`` and
+    ``...@host`` tricks; this parses the URL and checks each part.
+    """
+    try:
+        parts = urllib.parse.urlsplit(url)
+    except ValueError:
+        return False
+    prefix = urllib.parse.urlsplit(DOWNLOAD).path.rstrip("/") + "/"
+    segments = parts.path.split("/")
+    return (
+        parts.scheme == "https"
+        and parts.hostname == "github.com"
+        and parts.port is None
+        and not parts.username
+        and not parts.query
+        and not parts.fragment
+        and parts.path.startswith(prefix)
+        and "" not in segments[1:]
+        and not any(s in (".", "..") or "%" in s or "\\" in s for s in segments)
+        and parts.path.endswith(".whl")
+    )
+
+
+def verify_wheel(root: Path, wheel: str) -> Path | None:
+    """Download ``wheel`` and check it against the release's ``.sha256`` file.
+
+    Returns the verified local file, or ``None`` when the release publishes no checksum — the
+    releases made before checksums existed — in which case the caller installs from the URL as
+    before, and this says so in the log. A checksum that is present and does not match raises:
+    a truncated, swapped or corrupted download must never reach ``uv``.
+    """
+    sidecar = f"{wheel}.sha256"
+    try:
+        with urllib.request.urlopen(sidecar, timeout=30) as answer:  # noqa: S310 - https, checked
+            expected = answer.read(4096).decode("ascii", "replace").split()[0].lower()
+    except (OSError, IndexError):
+        say(root, "no checksum published for this wheel; installing without one")
+        return None
+    if not re.fullmatch(r"[0-9a-f]{64}", expected):
+        raise RuntimeError("the wheel's checksum file is not a SHA-256 digest")
+
+    folder = root / "downloads"
+    folder.mkdir(parents=True, exist_ok=True)
+    target = folder / Path(urllib.parse.urlsplit(wheel).path).name
+    digest = hashlib.sha256()
+    with urllib.request.urlopen(wheel, timeout=120) as answer, target.open("wb") as out:  # noqa: S310
+        while chunk := answer.read(1 << 20):
+            digest.update(chunk)
+            out.write(chunk)
+    if digest.hexdigest() != expected:
+        target.unlink(missing_ok=True)
+        raise RuntimeError("the downloaded wheel does not match its published SHA-256")
+    say(root, f"wheel verified sha256 {expected[:12]}…")
+    return target
 
 
 def release_of(version: str | None) -> tuple[int, ...]:
@@ -357,8 +434,24 @@ def install(root: Path, uv: Path, slot: str, version: str, wheel: str | None = N
     ``wheel`` is the URL the app read off the release. Only a first install, which has no
     release to read, falls back to the conventional name.
     """
-    wheel = wheel or f"{DOWNLOAD}/v{version}/alpha_harness-{version}-py3-none-any.whl"
-    constraints = f"{DOWNLOAD}/v{version}/constraints.txt"
+    if not _VERSION_SHAPE.fullmatch(version):
+        raise RuntimeError(f"refusing to install a version named {version[:40]!r}")
+    # A build that carries its own wheel (``--add-data payload``) installs that for the version
+    # it was built as, so a first run needs no published release. Updates still come from the
+    # repository's releases.
+    payload = bundled("payload")
+    packaged = payload / f"alpha_harness-{version}-py3-none-any.whl"
+    if wheel is None and packaged.is_file():
+        wheel, verified = str(packaged), packaged
+        constraints = str(payload / "constraints.txt")
+    else:
+        wheel = wheel or f"{DOWNLOAD}/v{version}/alpha_harness-{version}-py3-none-any.whl"
+        constraints = f"{DOWNLOAD}/v{version}/constraints.txt"
+        if not trusted_download(wheel):
+            raise RuntimeError(
+                "refusing to install a wheel from outside this repository's releases"
+            )
+        verified = verify_wheel(root, wheel)
     say(root, f"installing {version} from {wheel}")
 
     # uv keeps its Python builds and cache inside the same directory, so uninstalling the app
@@ -399,7 +492,9 @@ def install(root: Path, uv: Path, slot: str, version: str, wheel: str | None = N
     run("venv", "--python", "3.14", str(root / f"venv-{slot}"))
     # Constrained to the versions the release was locked against, so a transitive dependency
     # publishing a breaking version cannot break an install that worked yesterday.
-    run("pip", "install", "--python", str(venv_python(root, slot)), "-c", constraints, wheel)
+    # The local copy when it was checked, so what is installed is exactly what was hashed.
+    source = str(verified) if verified is not None else wheel
+    run("pip", "install", "--python", str(venv_python(root, slot)), "-c", constraints, source)
     (root / f"slot-{slot}.json").write_text(json.dumps({"version": version}), encoding="utf-8")
     say(root, f"installed {version} into slot {slot}")
 

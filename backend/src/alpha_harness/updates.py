@@ -19,6 +19,7 @@ import asyncio
 import json
 import os
 import platform
+import re
 import sys
 import time
 from dataclasses import dataclass
@@ -39,7 +40,17 @@ log = structlog.get_logger(__name__)
 
 PACKAGE = "alpha-harness"
 REPOSITORY_VARIABLE = "ALPHA_HARNESS_REPOSITORY"
-REPOSITORY = os.environ.get(REPOSITORY_VARIABLE) or "residual-lab/alpha-harness"
+DEFAULT_REPOSITORY = "its-meAmrit/alpha-harness"
+
+
+def _repository() -> str:
+    """The repository to read releases from; a malformed environment value is ignored."""
+    raw = os.environ.get(REPOSITORY_VARIABLE, "").strip()
+    ok = re.fullmatch(r"[A-Za-z0-9](?:[A-Za-z0-9._-]{0,98})/[A-Za-z0-9._-]{1,100}", raw)
+    return raw if ok and ".." not in raw else DEFAULT_REPOSITORY
+
+
+REPOSITORY = _repository()
 RELEASES_URL = f"https://api.github.com/repos/{REPOSITORY}/releases/latest"
 #: Where a person goes to fetch a release by hand, when the app cannot do it for them.
 RELEASES_PAGE = f"https://github.com/{REPOSITORY}/releases/latest"
