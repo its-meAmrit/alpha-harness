@@ -37,7 +37,7 @@ from alpha_harness.window import open_window
 #: Written in by the release workflow; the version a fresh machine installs.
 BUILD_VERSION = "0.0.0"
 REPOSITORY_VARIABLE = "ALPHA_HARNESS_REPOSITORY"
-DEFAULT_REPOSITORY = "residual-lab/alpha-harness"
+DEFAULT_REPOSITORY = "its-meAmrit/alpha-harness"
 #: ``owner/name`` as GitHub spells them. Anything else in the environment variable is ignored
 #: rather than trusted: the value is spliced into URLs the launcher installs code from.
 _REPOSITORY_SHAPE = re.compile(r"[A-Za-z0-9](?:[A-Za-z0-9._-]{0,98})/[A-Za-z0-9._-]{1,100}")
@@ -436,11 +436,22 @@ def install(root: Path, uv: Path, slot: str, version: str, wheel: str | None = N
     """
     if not _VERSION_SHAPE.fullmatch(version):
         raise RuntimeError(f"refusing to install a version named {version[:40]!r}")
-    wheel = wheel or f"{DOWNLOAD}/v{version}/alpha_harness-{version}-py3-none-any.whl"
-    constraints = f"{DOWNLOAD}/v{version}/constraints.txt"
-    if not trusted_download(wheel):
-        raise RuntimeError("refusing to install a wheel from outside this repository's releases")
-    verified = verify_wheel(root, wheel)
+    # A build that carries its own wheel (``--add-data payload``) installs that for the version
+    # it was built as, so a first run needs no published release. Updates still come from the
+    # repository's releases.
+    payload = bundled("payload")
+    packaged = payload / f"alpha_harness-{version}-py3-none-any.whl"
+    if wheel is None and packaged.is_file():
+        wheel, verified = str(packaged), packaged
+        constraints = str(payload / "constraints.txt")
+    else:
+        wheel = wheel or f"{DOWNLOAD}/v{version}/alpha_harness-{version}-py3-none-any.whl"
+        constraints = f"{DOWNLOAD}/v{version}/constraints.txt"
+        if not trusted_download(wheel):
+            raise RuntimeError(
+                "refusing to install a wheel from outside this repository's releases"
+            )
+        verified = verify_wheel(root, wheel)
     say(root, f"installing {version} from {wheel}")
 
     # uv keeps its Python builds and cache inside the same directory, so uninstalling the app

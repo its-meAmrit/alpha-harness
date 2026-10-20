@@ -40,7 +40,7 @@ log = structlog.get_logger(__name__)
 
 PACKAGE = "alpha-harness"
 REPOSITORY_VARIABLE = "ALPHA_HARNESS_REPOSITORY"
-DEFAULT_REPOSITORY = "residual-lab/alpha-harness"
+DEFAULT_REPOSITORY = "its-meAmrit/alpha-harness"
 
 
 def _repository() -> str:
