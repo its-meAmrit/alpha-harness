@@ -40,7 +40,9 @@ class SubmissionFields(BaseModel):
 
 class ValidateRequest(SubmissionFields):
     #: Further runs of the same prompt in fresh chats, to compare with the sample.
-    extra_runs: Annotated[list[Annotated[str, Field(max_length=SAMPLE_CAP)]], Field(max_length=MAX_EXTRA_RUNS)] = []
+    extra_runs: Annotated[
+        list[Annotated[str, Field(max_length=SAMPLE_CAP)]], Field(max_length=MAX_EXTRA_RUNS)
+    ] = []
     #: The draft being edited, left out of the overlap comparison.
     draft_id: str | None = None
 
@@ -135,12 +137,15 @@ def _out(draft: Draft) -> DraftOut:
 
 
 def _limits(drafts: list[Draft]) -> Limits:
-    today = datetime.now().astimezone().date()  # noqa: DTZ005 - the user's own calendar day
+    today = datetime.now().astimezone().date()
     submitted = [d for d in drafts if d.status == "submitted"]
     active = [d for d in submitted if d.weight > 0]
 
     def on_today(d: Draft) -> bool:
-        return bool(d.submitted_at) and datetime.fromisoformat(d.submitted_at or "").astimezone().date() == today
+        return (
+            bool(d.submitted_at)
+            and datetime.fromisoformat(d.submitted_at or "").astimezone().date() == today
+        )
 
     covered: set[str] = set()
     for d in active:
@@ -186,7 +191,13 @@ def _report(body: ValidateRequest, others: list[Draft]) -> Report:
         share = rules.overlap(mine, theirs)
         if shared and share >= 0.2:
             overlaps.append(
-                OverlapOut(draft_id=d.id, name=d.name, status=d.status, shared=shared, overlap=round(share, 3))
+                OverlapOut(
+                    draft_id=d.id,
+                    name=d.name,
+                    status=d.status,
+                    shared=shared,
+                    overlap=round(share, 3),
+                )
             )
     overlaps.sort(key=lambda o: o.overlap, reverse=True)
     if overlaps:
@@ -202,7 +213,9 @@ def _report(body: ValidateRequest, others: list[Draft]) -> Report:
     return Report(
         ready=not any(i.level == "error" for i in issues),
         issues=[IssueOut.model_validate(asdict(i)) for i in issues],
-        stats=StatsOut.model_validate(asdict(rules.book_stats(sample.entries))) if sample.entries else None,
+        stats=StatsOut.model_validate(asdict(rules.book_stats(sample.entries)))
+        if sample.entries
+        else None,
         stability=StabilityOut.model_validate(asdict(stability)) if stability else None,
         overlaps=overlaps[:5],
     )
@@ -262,7 +275,9 @@ class Submitted(BaseModel):
 async def mark_submitted(draft_id: str, body: Submitted, state: State) -> DraftOut:
     """Record that the prompt was submitted on BRAIN (or take that back). Bookkeeping only."""
     try:
-        draft = await asyncio.to_thread(lambda: _store(state).mark(draft_id, submitted=body.submitted))
+        draft = await asyncio.to_thread(
+            lambda: _store(state).mark(draft_id, submitted=body.submitted)
+        )
     except KeyError as exc:
         raise refuse(404, "draft_not_found", "That prompt is no longer saved.") from exc
     return _out(draft)
@@ -274,5 +289,3 @@ async def delete_draft(draft_id: str, state: State) -> None:
         await asyncio.to_thread(_store(state).delete, draft_id)
     except KeyError as exc:
         raise refuse(404, "draft_not_found", "That prompt is no longer saved.") from exc
-
-

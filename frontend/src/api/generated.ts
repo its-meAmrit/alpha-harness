@@ -1561,6 +1561,83 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/spc/drafts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Drafts */
+        get: operations["list_drafts_api_spc_drafts_get"];
+        put?: never;
+        /** Create Draft */
+        post: operations["create_draft_api_spc_drafts_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/spc/drafts/{draft_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Update Draft */
+        put: operations["update_draft_api_spc_drafts__draft_id__put"];
+        post?: never;
+        /** Delete Draft */
+        delete: operations["delete_draft_api_spc_drafts__draft_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/spc/drafts/{draft_id}/submitted": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Mark Submitted
+         * @description Record that the prompt was submitted on BRAIN (or take that back). Bookkeeping only.
+         */
+        post: operations["mark_submitted_api_spc_drafts__draft_id__submitted_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/spc/validate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Validate
+         * @description Every check BRAIN's submission rules and the community guides support, without sending
+         *     anything anywhere.
+         */
+        post: operations["validate_api_spc_validate_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/super-lab/plan": {
         parameters: {
             query?: never;
@@ -2996,6 +3073,45 @@ export interface components {
             /** Value Score */
             value_score: number | null;
         };
+        /** DraftOut */
+        DraftOut: {
+            /** Createdat */
+            createdAt: string;
+            /** Frequency */
+            frequency: string;
+            /** Id */
+            id: string;
+            /** Model */
+            model: string;
+            /** Modelversion */
+            modelVersion: string;
+            /** Name */
+            name: string;
+            /** Names */
+            names: number;
+            /** Prompt */
+            prompt: string;
+            /** Sampleoutput */
+            sampleOutput: string;
+            /** Status */
+            status: string;
+            /** Submittedat */
+            submittedAt: string | null;
+            /** Updatedat */
+            updatedAt: string;
+            /** Weight */
+            weight: number;
+        };
+        /** Drafts */
+        Drafts: {
+            /** Drafts */
+            drafts: components["schemas"]["DraftOut"][];
+            /** Frequencies */
+            frequencies: string[];
+            limits: components["schemas"]["Limits"];
+            /** Models */
+            models: string[];
+        };
         /** DropResult */
         DropResult: {
             /** Dropped */
@@ -3288,6 +3404,17 @@ export interface components {
             /** Websocketclients */
             websocketClients: number;
         };
+        /** IssueOut */
+        IssueOut: {
+            /** Code */
+            code: string;
+            /** Level */
+            level: string;
+            /** Message */
+            message: string;
+            /** Where */
+            where: string | null;
+        };
         /** KeyFailed */
         KeyFailed: {
             /** Error */
@@ -3557,6 +3684,21 @@ export interface components {
             /** Vector */
             vector: number;
         };
+        /** Limits */
+        Limits: {
+            /** Active */
+            active: number;
+            /** Coverage */
+            coverage: number;
+            /** Coveragetarget */
+            coverageTarget: number;
+            /** Maxactive */
+            maxActive: number;
+            /** Maxperday */
+            maxPerDay: number;
+            /** Today */
+            today: number;
+        };
         /** LineageSibling */
         LineageSibling: {
             /** Alphaid */
@@ -3687,6 +3829,19 @@ export interface components {
             dataset_ids?: string[];
             /** Field Ids */
             field_ids?: string[];
+        };
+        /** OverlapOut */
+        OverlapOut: {
+            /** Draftid */
+            draftId: string;
+            /** Name */
+            name: string;
+            /** Overlap */
+            overlap: number;
+            /** Shared */
+            shared: number;
+            /** Status */
+            status: string;
         };
         /** Pair */
         Pair: {
@@ -4336,6 +4491,17 @@ export interface components {
             /** Universes */
             universes: string[];
         };
+        /** Report */
+        Report: {
+            /** Issues */
+            issues: components["schemas"]["IssueOut"][];
+            /** Overlaps */
+            overlaps: components["schemas"]["OverlapOut"][];
+            /** Ready */
+            ready: boolean;
+            stability: components["schemas"]["StabilityOut"] | null;
+            stats: components["schemas"]["StatsOut"] | null;
+        };
         /**
          * ResolveOptionsRequest
          * @description Settings chosen so far. Partial is fine — that is the point.
@@ -4686,6 +4852,19 @@ export interface components {
             /** Universe */
             universe: string | null;
         };
+        /** StabilityOut */
+        StabilityOut: {
+            /** Identical */
+            identical: boolean;
+            /** Maxconfidenceshift */
+            maxConfidenceShift: number;
+            /** Minoverlap */
+            minOverlap: number;
+            /** Runs */
+            runs: number;
+            /** Unstablenames */
+            unstableNames: string[];
+        };
         /** StatsItem */
         StatsItem: {
             /**
@@ -4697,6 +4876,23 @@ export interface components {
             variables?: {
                 [key: string]: components["schemas"]["FieldsVariable"] | components["schemas"]["ValuesVariable"];
             };
+        };
+        /** StatsOut */
+        StatsOut: {
+            /** Count */
+            count: number;
+            /** Distinctisins */
+            distinctIsins: number;
+            /** Gross */
+            gross: number;
+            /** Long */
+            long: number;
+            /** Medianhorizon */
+            medianHorizon: number | null;
+            /** Net */
+            net: number;
+            /** Short */
+            short: number;
         };
         /** StatsRequest */
         StatsRequest: {
@@ -4722,6 +4918,47 @@ export interface components {
             n: number;
             /** Name */
             name: string | null;
+        };
+        /**
+         * SubmissionFields
+         * @description The form's seven fields, in the order BRAIN's form asks for them.
+         */
+        SubmissionFields: {
+            /**
+             * Frequency
+             * @default Daily
+             */
+            frequency: string;
+            /**
+             * Model
+             * @default Claude
+             */
+            model: string;
+            /**
+             * Model Version
+             * @default
+             */
+            model_version: string;
+            /**
+             * Name
+             * @default
+             */
+            name: string;
+            /**
+             * Prompt
+             * @default
+             */
+            prompt: string;
+            /**
+             * Sample Output
+             * @default
+             */
+            sample_output: string;
+            /**
+             * Weight
+             * @default 0.3
+             */
+            weight: number;
         };
         /** SubmittableAlpha */
         SubmittableAlpha: {
@@ -4792,6 +5029,11 @@ export interface components {
             total: number;
             /** Unvalidated */
             unvalidated: number;
+        };
+        /** Submitted */
+        Submitted: {
+            /** Submitted */
+            submitted: boolean;
         };
         /** SubmittedRequest */
         SubmittedRequest: {
@@ -5379,6 +5621,51 @@ export interface components {
             releasesUrl: string;
             /** Url */
             url: string;
+        };
+        /** ValidateRequest */
+        ValidateRequest: {
+            /** Draft Id */
+            draft_id?: string | null;
+            /**
+             * Extra Runs
+             * @default []
+             */
+            extra_runs: string[];
+            /**
+             * Frequency
+             * @default Daily
+             */
+            frequency: string;
+            /**
+             * Model
+             * @default Claude
+             */
+            model: string;
+            /**
+             * Model Version
+             * @default
+             */
+            model_version: string;
+            /**
+             * Name
+             * @default
+             */
+            name: string;
+            /**
+             * Prompt
+             * @default
+             */
+            prompt: string;
+            /**
+             * Sample Output
+             * @default
+             */
+            sample_output: string;
+            /**
+             * Weight
+             * @default 0.3
+             */
+            weight: number;
         };
         /** ValidationError */
         ValidationError: {
@@ -7816,6 +8103,191 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["CancelResult"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_drafts_api_spc_drafts_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Drafts"];
+                };
+            };
+        };
+    };
+    create_draft_api_spc_drafts_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SubmissionFields"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DraftOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_draft_api_spc_drafts__draft_id__put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                draft_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SubmissionFields"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DraftOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_draft_api_spc_drafts__draft_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                draft_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    mark_submitted_api_spc_drafts__draft_id__submitted_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                draft_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["Submitted"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DraftOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    validate_api_spc_validate_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ValidateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Report"];
                 };
             };
             /** @description Validation Error */

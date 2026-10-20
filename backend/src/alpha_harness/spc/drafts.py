@@ -7,15 +7,16 @@ bookkeeping, used for limits and overlap warnings.
 """
 
 import json
-import os
 import re
 import secrets
 from dataclasses import asdict, dataclass
 from datetime import UTC, datetime
-from pathlib import Path
-from typing import Any, Literal
+from typing import TYPE_CHECKING, Any, Literal
 
 import structlog
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 log = structlog.get_logger(__name__)
 
@@ -59,7 +60,7 @@ class DraftStore:
         tmp = target.with_name(f".{target.name}.{secrets.token_hex(4)}")
         try:
             tmp.write_text(json.dumps(asdict(draft), ensure_ascii=False), encoding="utf-8")
-            os.replace(tmp, target)
+            tmp.replace(target)
         finally:
             tmp.unlink(missing_ok=True)
 
@@ -73,7 +74,7 @@ class DraftStore:
             try:
                 body: Any = json.loads(path.read_text(encoding="utf-8"))
                 found.append(Draft(**body))
-            except (OSError, ValueError, TypeError):
+            except OSError, ValueError, TypeError:
                 # One unreadable file must not hide the others.
                 log.warning("spc.draft_unreadable", file=path.name)
         return sorted(found, key=lambda d: d.updated_at, reverse=True)

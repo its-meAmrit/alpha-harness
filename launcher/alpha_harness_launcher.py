@@ -16,11 +16,11 @@ working when the venv it manages does not.
 """
 
 import ctypes
+import hashlib
 import json
 import os
 import re
 import shutil
-import hashlib
 import subprocess
 import sys
 import threading
@@ -366,7 +366,7 @@ def verify_wheel(root: Path, wheel: str) -> Path | None:
     try:
         with urllib.request.urlopen(sidecar, timeout=30) as answer:  # noqa: S310 - https, checked
             expected = answer.read(4096).decode("ascii", "replace").split()[0].lower()
-    except (OSError, IndexError):
+    except OSError, IndexError:
         say(root, "no checksum published for this wheel; installing without one")
         return None
     if not re.fullmatch(r"[0-9a-f]{64}", expected):

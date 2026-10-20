@@ -30,7 +30,8 @@ FREQUENCIES = ("Daily", "Weekly", "Monthly", "Quarterly")
 
 PROMPT_MAX_CHARS = 10_000
 MODEL_VERSION_MAX_CHARS = 100
-#: Community guide: prompt plus sample over this risks truncated output; over WARN_CHARS, instability.
+#: Community guide: prompt plus sample over BUDGET_MAX_CHARS risks truncated output, and over
+#: BUDGET_WARN_CHARS instability.
 BUDGET_WARN_CHARS = 24_000
 BUDGET_MAX_CHARS = 28_000
 #: "~50 equities" is the recommendation; outside this range the guides report degraded output.
@@ -56,9 +57,54 @@ MIC_SHAPE = re.compile(r"[A-Z0-9]{4}")
 #: Primary exchanges that appear in practice. Not exhaustive: an unlisted MIC that is well
 #: formed is a warning to look at, not an error.
 KNOWN_MICS = frozenset(
-    "XNAS XNYS ARCX XASE BATS XTSE XTSX XMEX BVMF XLON XPAR XAMS XBRU XLIS XMIL XMAD XSWX XETR "
-    "XFRA XSTO XCSE XHEL XOSL XWAR XWBO XDUB XATH XIST XTAE XJSE XSAU XTKS XHKG XSHG XSHE XKRX "
-    "XKOS XTAI XSES XBKK XIDX XKLS XASX XNZE XNSE XBOM".split()
+    [
+        "XNAS",
+        "XNYS",
+        "ARCX",
+        "XASE",
+        "BATS",
+        "XTSE",
+        "XTSX",
+        "XMEX",
+        "BVMF",
+        "XLON",
+        "XPAR",
+        "XAMS",
+        "XBRU",
+        "XLIS",
+        "XMIL",
+        "XMAD",
+        "XSWX",
+        "XETR",
+        "XFRA",
+        "XSTO",
+        "XCSE",
+        "XHEL",
+        "XOSL",
+        "XWAR",
+        "XWBO",
+        "XDUB",
+        "XATH",
+        "XIST",
+        "XTAE",
+        "XJSE",
+        "XSAU",
+        "XTKS",
+        "XHKG",
+        "XSHG",
+        "XSHE",
+        "XKRX",
+        "XKOS",
+        "XTAI",
+        "XSES",
+        "XBKK",
+        "XIDX",
+        "XKLS",
+        "XASX",
+        "XNZE",
+        "XNSE",
+        "XBOM",
+    ]
 )
 
 
@@ -96,7 +142,7 @@ class Book:
 
 
 def isin_valid(isin: str) -> bool:
-    """Shape and check digit (ISO 6166: letters become 10–35, then Luhn over every digit)."""
+    """Shape and check digit (ISO 6166: letters become 10 to 35, then Luhn over every digit)."""
     if not ISIN_SHAPE.fullmatch(isin):
         return False
     digits = "".join(str(int(c, 36)) for c in isin)
@@ -225,12 +271,19 @@ def _read_row(book: Book, index: int, row: Any) -> None:
             )
         )
 
-    conf, horizon, ret = row["confidence_score"], row["investment_horizon"], row["return_prediction"]
+    conf, horizon, ret = (
+        row["confidence_score"],
+        row["investment_horizon"],
+        row["return_prediction"],
+    )
     if not _number(conf) or not -1 <= conf <= 1:
         bad("confidence_range", f"confidence_score {conf!r} must be a number from -1 to 1.")
         return
     if not _number(horizon) or horizon != int(horizon) or horizon <= 0:
-        bad("horizon_value", f"investment_horizon {horizon!r} must be a positive whole number of days.")
+        bad(
+            "horizon_value",
+            f"investment_horizon {horizon!r} must be a positive whole number of days.",
+        )
         return
     if not _number(ret) or ret <= 0:
         bad(
@@ -331,7 +384,9 @@ def check_book(entries: list[Entry]) -> list[Issue]:
             )
         )
     elif n > BOOK_HIGH:
-        out.append(Issue("info", "book_above_target", f"{n} names; the recommendation is about 50."))
+        out.append(
+            Issue("info", "book_above_target", f"{n} names; the recommendation is about 50.")
+        )
     horizons = {e.investment_horizon for e in entries}
     if n >= 10 and len(horizons) == 1:
         out.append(
@@ -414,7 +469,12 @@ def check_fields(
             "modelVersion",
         )
     if frequency not in FREQUENCIES:
-        add("error", "frequency_unknown", f"Update frequency must be one of {', '.join(FREQUENCIES)}.", "frequency")
+        add(
+            "error",
+            "frequency_unknown",
+            f"Update frequency must be one of {', '.join(FREQUENCIES)}.",
+            "frequency",
+        )
     elif frequency == "Quarterly":
         add(
             "info",
@@ -451,8 +511,11 @@ def check_fields(
             "The prompt never asks for JSON, which is the only output the platform accepts.",
         ),
         (
-            not re.search(r"\b\d{2,3}\b\s*(?:[-–]\s*\d{2,3}\s*)?(?:\w+\s){0,3}"
-                          r"(?:stocks|equities|names|companies|tickers|positions|isins)", lowered)
+            not re.search(
+                r"\b\d{2,3}\b\s*(?:[-\u2013]\s*\d{2,3}\s*)?(?:\w+\s){0,3}"
+                r"(?:stocks|equities|names|companies|tickers|positions|isins)",
+                lowered,
+            )
             and not re.search(r"(?:exactly|about|around|~|approximately)\s*\d{2,3}", lowered),
             "advice_count",
             "The prompt states no explicit number of names. Without one the model may return "
@@ -465,14 +528,20 @@ def check_fields(
             "the primary exchange's MIC, and for unsure names to be left out.",
         ),
         (
-            bool(re.search(r"\[[^\]\n]*(?:your|insert|\.\.\.|total)[^\]\n]*\]|<placeholder>|lorem", lowered)),
+            bool(
+                re.search(
+                    r"\[[^\]\n]*(?:your|insert|\.\.\.|total)[^\]\n]*\]|<placeholder>|lorem", lowered
+                )
+            ),
             "placeholder_left",
             "The prompt still contains template placeholder text.",
         ),
     )
     for flagged, code, message in advice:
         if flagged and text:
-            out.append(Issue("error" if code == "placeholder_left" else "warning", code, message, "prompt"))
+            out.append(
+                Issue("error" if code == "placeholder_left" else "warning", code, message, "prompt")
+            )
     return out
 
 
@@ -515,7 +584,13 @@ def compare_runs(books: list[Book]) -> tuple[Stability | None, list[Issue]]:
         shifts.extend(abs(first[k] - other[k]) for k in set(first) & set(other))
         everywhere &= set(other)
         anywhere |= set(other)
-    canon = [sorted((e.key, e.confidence_score, e.investment_horizon, e.return_prediction) for e in b.entries) for b in usable]
+    canon = [
+        sorted(
+            (e.key, e.confidence_score, e.investment_horizon, e.return_prediction)
+            for e in b.entries
+        )
+        for b in usable
+    ]
     identical = all(c == canon[0] for c in canon[1:])
     stability = Stability(
         runs=len(usable),
@@ -531,7 +606,8 @@ def compare_runs(books: list[Book]) -> tuple[Stability | None, list[Issue]]:
             Issue(
                 "warning",
                 "runs_differ",
-                f"The {len(usable)} runs differ: the smallest overlap is {stability.min_overlap:.0%} "
+                f"The {len(usable)} runs differ: the smallest overlap is "
+                f"{stability.min_overlap:.0%} "
                 f"and a confidence moved by up to {stability.max_confidence_shift:g}. A prompt "
                 "that varies between runs can be marked unstable. Lower the temperature, "
                 "fix the universe, and state an explicit count.",
